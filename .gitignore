@@ -1,0 +1,6 @@
+*.csv
+*.sqlite
+*.diff
+*.iml
+*.pyc
+.idea
