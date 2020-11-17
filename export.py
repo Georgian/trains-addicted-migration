@@ -110,7 +110,10 @@ def select_all_products(conn):
 
     cur = conn.cursor()
     cur.execute(
-        "select objects.productCode, products_categories.categoryId, products_categories.productId from objects join products_categories on objects.Id=products_categories.productId where objects.class='CproductPage'")
+        "select objects.productCode, products_categories.categoryId, products_categories.productId "
+        "from objects "
+        "join products_categories on objects.Id=products_categories.productId "
+        "where objects.class='CproductPage'")
     rows = cur.fetchall()
 
     with open('product_categories.csv', 'w') as csvfile:
@@ -143,7 +146,9 @@ def select_all_products(conn):
 
     cur = conn.cursor()
     cur.execute(
-        "select objects.productCode, products_operators.operatorId, products_operators.productId from objects join products_operators on objects.Id=products_operators.productId")
+        "select objects.productCode, products_operators.operatorId, products_operators.productId "
+        "from objects "
+        "join products_operators on objects.Id=products_operators.productId")
     rows = cur.fetchall()
 
     with open('product_operators.csv', 'w') as csvfile:
@@ -176,7 +181,9 @@ def select_all_products(conn):
 
     cur = conn.cursor()
     cur.execute(
-        "select objects.productCode, products_epoques.epoqueId, products_epoques.productId from objects join products_epoques on objects.Id=products_epoques.productId")
+        "select objects.productCode, products_epoques.epoqueId, products_epoques.productId "
+        "from objects "
+        "join products_epoques on objects.Id=products_epoques.productId")
     rows = cur.fetchall()
 
     with open('product_epoques.csv', 'w') as csvfile:
@@ -209,7 +216,9 @@ def select_all_products(conn):
 
     cur = conn.cursor()
     cur.execute(
-        "select objects.productCode, products_scales.scaleId, products_scales.productId from objects join products_scales on objects.Id=products_scales.productId")
+        "select objects.productCode, products_scales.scaleId, products_scales.productId "
+        "from objects "
+        "join products_scales on objects.Id=products_scales.productId")
     rows = cur.fetchall()
 
     with open('product_scales.csv', 'w') as csvfile:
@@ -272,8 +281,9 @@ def select_all_products(conn):
 
     cur = conn.cursor()
     cur.execute(
-        "SELECT productCode, title_ro, title_en, salePrice, discountPrice, parentId, creationDate, data FROM objects where class='CproductPage'")
-
+        "SELECT productCode, title_ro, title_en, salePrice, discountPrice, parentId, creationDate, data "
+        "FROM objects "
+        "WHERE class='CproductPage'")
     rows = cur.fetchall()
 
     # these are fields to be extracted from the data blob
