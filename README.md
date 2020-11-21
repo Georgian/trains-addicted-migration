@@ -1,8 +1,14 @@
-# trains-addicted-migration
+# Intro
 
-A python3 upgrade for https://bitbucket.org/mariusmagureanu/vescu
+This funky repo will translate the TA sqlite into magento/opencart data.
 
-https://www.trains-addicted.ro/
+For now it will only dump the available orders into a single table database.
+
+Stay tuned...
+
+# Prereqs
+
+Python 2.7;
 
 # How to run
 

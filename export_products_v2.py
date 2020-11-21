@@ -1,5 +1,8 @@
 import csv
+import re
 import sqlite3
+from pprint import pprint
+
 from serialize_tools import unserialize, loads, dumps
 
 
@@ -82,7 +85,7 @@ def get_pictures_by_product_code(conn):
                            "from objects o1, objects o2 "
                            "where o2.class='Cslideshow' and o2.parentId = o1.id")
     result = {}
-    pic_path = '{}/^all/{}'
+    pic_path = "{}/{}"
     for row in rows:
         meta = decode_dict(deserialize(row[2]))
         if "pictures" in meta:
@@ -146,6 +149,7 @@ def export_products_magento(conn):
     # product_images = get_images_by_product_code(conn)
     product_pictures = get_pictures_by_product_code(conn)
     category_mappings = get_category_mappings()
+    multiple_values_separator = ';'
 
     db_products = fetch_all(
         conn,
@@ -164,12 +168,13 @@ def export_products_magento(conn):
     headers_ro = [
         "sku",
         "name",
+        "created_date",
         "old_category",
         "categories",
         "description",
         "price",
         "special_price",
-        "url_key",
+        # "url_key",
         "product_type",
         "attribute_set_code",
         "product_websites",
@@ -181,50 +186,70 @@ def export_products_magento(conn):
         "meta_description",
         "base_image",
         "additional_images",
-        "ta_epoca",
-        "ta_scara",
-        "ta_operator",
-        "ta_producator"
+        "thumbnail_image",
+        "small_image",
+        "epoca",
+        "scara",
+        "operator",
+        "producator"
     ]
 
-    with open('products_magento_ro.csv', 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=headers_ro)
+    with open('products_magento_ro_FULL.csv', 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headers_ro, quoting=csv.QUOTE_NONNUMERIC)
         writer.writeheader()
-        for db_product in db_products[:100]:
+        for db_product in sorted(db_products, reverse=True, key=lambda x: x[7]):
             product_code = db_product[1]
             title_ro = db_product[2]
             product_meta = decode_dict(deserialize(db_product[8]))
-            pics = product_pictures[product_code]
+            pics = product_pictures[product_code] if product_code in product_pictures else []
+            main_pic = pics[0] if pics else ''
+            special_price = db_product[5] if (db_product[5] and db_product[5] != '0.0') else ''
+            description = process_description(product_meta.get("description_ro", ""))
+
             try:
                 old_category = product_categories[product_code]
             except KeyError:
                 old_category = ''
+
             product = {
                 "sku": product_code,
                 "name": title_ro,  # title_ro,
                 "old_category": old_category,
+                "created_date": db_product[7],
                 "categories": category_mappings[old_category],
-                "description": product_meta.get("description_ro", ""),
+                "description": description,
                 "price": db_product[4],  # salePrice
-                "special_price": db_product[5],  # discountPrice
-                "base_image": pics[0] if pics else '',
-                "additional_images": ','.join(pics) if len(pics) > 1 else '',
-                "url_key": title_ro.strip().replace(" ", "-").lower() + '-' + product_code,
+                "special_price": special_price,  # discountPrice
+                "base_image": main_pic,
+                "small_image": main_pic,
+                "thumbnail_image": main_pic,
+                "additional_images": multiple_values_separator.join(pics) if len(pics) > 1 else '',
+                # "url_key": title_ro.strip().replace(" ", "-").lower() + '-' + product_code,
                 "product_type": "simple",
                 "attribute_set_code": "Default TA",
                 "product_websites": "base",
                 "qty": 1,  # TODO
-                "additional_attributes": "",  # TODO
-                "short_description": "",  # TODO
+                # "additional_attributes": '',  # TODO
+                # "short_description": "",  # TODO
                 "meta_title": title_ro,
                 "meta_description": product_meta.get("metaDescription_ro", ""),
                 "meta_keywords": product_meta.get("metaKeywords_ro", ""),
-                "ta_epoca": product_epoques.get(product_code, ""),
-                "ta_operator": product_operators.get(product_code, ""),
-                "ta_scara": product_scales.get(product_code, ""),
-                "ta_producator": product_manufacturers.get(product_code, "")
+                "operator": product_operators.get(product_code, ''),
+                "producator": product_manufacturers.get(product_code, ''),
+                "scara": product_scales.get(product_code, ''),
+                "epoca": product_epoques.get(product_code, '')
             }
             writer.writerow(product)
+
+
+def process_description(description):
+    result = description
+    if description and '/Upload' in description:
+        for url in re.findall('(?<=src=")(.*?)\/Upload\/(.*?)(?=")', description):
+            # URL will be a tuple. Example: ('Resources/70817815/^all', 'macara-edk-750-db-Roco-73035-a-.jpg')
+            result = result.replace('{}/Upload/{}'.format(url[0], url[1]),
+                                    'pub/media/wysiwyg/TA/descriptionImages/{}'.format(url[1]))
+    return result
 
 
 def create_connection(db_file):
