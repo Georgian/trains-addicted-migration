@@ -217,8 +217,9 @@ def process_description(description):
     if description and '/Upload' in description:
         for url in re.findall('(?<=src=")(.*?)/Upload/(.*?)(?=")', description):
             # URL will be a tuple. Example: ('Resources/70817815/^all', 'macara-edk-750-db-Roco-73035-a-.jpg')
-            result = result.replace('{}/Upload/{}'.format(url[0], url[1]),
-                                    'pub/media/wysiwyg/TA/descriptionImages/{}'.format(url[1]))
+            old_path = '{}/Upload/{}'.format(url[0], url[1])
+            new_path = 'pub/media/wysiwyg/TA/descriptionImages/{}'.format(format_pic_name(url[1]))
+            result = result.replace(old_path, new_path)
     return result
 
 
