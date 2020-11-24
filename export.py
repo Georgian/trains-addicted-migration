@@ -160,7 +160,7 @@ def export_products_magento(conn):
 
     url_keys = []
 
-    for idx, db_product_batch in enumerate(batch(db_products, 7000)):
+    for idx, db_product_batch in enumerate(batch(db_products, 1000)):
         with open('build/products_magento_ro_{}.csv'.format(idx + 1), 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=headers_ro, quoting=csv.QUOTE_NONNUMERIC)
             writer.writeheader()

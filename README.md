@@ -2,7 +2,6 @@ Inspired by: https://bitbucket.org/mariusmagureanu/vescu.git
 
 ### export.py
 
-Crème de la crème.
 Deserializes, rearanges and sanitizes data from a Joomla db.sqlite database. Output is a Magento 2.x readable CSV file.
 Place db.sqlite next to script and run it. 
 
@@ -20,8 +19,8 @@ Image names are sanitized, because Magento does not like spaces and other charac
 why this script was written in the first place, because of the caret character in the original path of each image.
 
 Example:
-- old path: Reources/^all/17493698/macara-edk-750-OBB-Roco-73036-.jpg (notice the caret...)
-- new path: var/import/images/17493698/macara-edk-750-OBB-Roco-73036-.jpg
+- old path: `Reources/^all/17493698/macara-edk-750-OBB-Roco-73036-.jpg` (notice the caret...)
+- new path: `var/import/images/17493698/macara-edk-750-OBB-Roco-73036-.jpg`
 
 ### move_upload_images.py
 
@@ -29,8 +28,8 @@ Some product descriptions contain images. Their original path was in the Resourc
 This script replaces that path with a new one, where Magento stores manually uploaded images.
 
 Example:
-- old: Resources/17493698/^all/Upload/macara-edk-750-db-Roco-73035-a-.jpg
-- new: pub/media/wysiwyg/TA/descriptionImages/macara-edk-750-db-Roco-73035-a-.jpg
+- old: `Resources/17493698/^all/Upload/macara-edk-750-db-Roco-73035-a-.jpg`
+- new: `pub/media/wysiwyg/TA/descriptionImages/macara-edk-750-db-Roco-73035-a-.jpg`
 
 ### category_mappings.csv
 
