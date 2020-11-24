@@ -2,7 +2,12 @@ import csv
 import re
 import sqlite3
 
-from common import deserialize, decode_dict, format_url_key, format_pic_name, batch
+from common import decode_dict, format_url_key, format_pic_name, batch
+from serialize_tools import unserialize, loads, dumps
+
+
+def deserialize(db_object):
+    return unserialize(loads(dumps(db_object)))
 
 
 def get_objects_by_id(conn, clazz):
@@ -149,12 +154,13 @@ def export_products_magento(conn):
     headers_en = ["sku", "name", "description", "meta_description", "meta_keywords"]
     headers_ro = ["sku", "name", "created_date", "old_category", "categories", "description", "price", "special_price",
                   "url_key", "product_type", "attribute_set_code", "product_websites", "qty", "additional_attributes",
-                  "short_description", "meta_title", "meta_keywords", "meta_description", "base_image", "additional_images",
+                  "short_description", "meta_title", "meta_keywords", "meta_description", "base_image",
+                  "additional_images",
                   "thumbnail_image", "small_image", "epoca", "scara", "operator", "producator"]
 
     url_keys = []
 
-    for idx, db_product_batch in enumerate(batch(db_products, 200)):
+    for idx, db_product_batch in enumerate(batch(db_products, 7000)):
         with open('build/products_magento_ro_{}.csv'.format(idx + 1), 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=headers_ro, quoting=csv.QUOTE_NONNUMERIC)
             writer.writeheader()

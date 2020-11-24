@@ -1,16 +1,9 @@
-from serialize_tools import unserialize, loads, dumps
-
-
 def format_pic_name(pic_name):
     return '-'.join(pic_name.strip().split())
 
 
 def format_url_key(string):
     return '-'.join(string.strip().lower().split())
-
-
-def deserialize(db_object):
-    return unserialize(loads(dumps(db_object)))
 
 
 def decode(obj):
