@@ -1,9 +1,21 @@
-def format_pic_name(pic_name):
-    return '-'.join(pic_name.strip().split())
+import os.path
+import re
+
+filename_regex = re.compile('[^0-9a-zA-Z]+')
 
 
-def format_url_key(string):
-    return '-'.join(string.strip().lower().split())
+def sanitize(string):
+    return '-'.join(filename_regex.sub(' ', string).strip().split())
+
+
+def sanitize_pic_name(pic_name):
+    splitext = os.path.splitext(pic_name)
+    pic_name_extensionless = sanitize(splitext[0])
+    return pic_name_extensionless + splitext[1]
+
+
+def sanitize_url_key(string):
+    return sanitize(string).lower()
 
 
 def decode(obj):

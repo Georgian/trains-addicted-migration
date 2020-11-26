@@ -1,8 +1,9 @@
 import csv
+import pprint
 import re
 import sqlite3
 
-from common import decode_dict, format_url_key, format_pic_name, batch
+from common import decode_dict, sanitize_url_key, batch, sanitize_pic_name, sanitize
 from serialize_tools import unserialize, loads, dumps
 
 
@@ -75,14 +76,14 @@ def get_scales_by_product_code(conn):
 def get_pictures_by_product_code(conn):
     rows = fetch_all(conn, "select o1.productCode, o2.id, o2.data "
                            "from objects o1, objects o2 "
-                           "where o2.class='Cslideshow' and o2.parentId = o1.id")
+                           "where o2.class='Cslideshow' and o1.class='CproductPage' and o2.parentId = o1.id")
     result = {}
     pic_path = "{}/{}"
     for row in rows:
         meta = decode_dict(deserialize(row[2]))
         if "pictures" in meta:
             pics = decode_dict(meta["pictures"]).values()
-            result[row[0]] = [pic_path.format(row[1], pic) for pic in pics]
+            result[row[0]] = [pic_path.format(row[1], sanitize_pic_name(pic)) for pic in pics]
     return result
 
 
@@ -159,17 +160,22 @@ def export_products_magento(conn):
                   "thumbnail_image", "small_image", "epoca", "scara", "operator", "producator"]
 
     url_keys = []
+    skus = []
+    batch_size = int(len(db_products) / 5)
 
-    for idx, db_product_batch in enumerate(batch(db_products, 1000)):
+    for idx, db_product_batch in enumerate(batch(db_products, batch_size)):
         with open('build/products_magento_ro_{}.csv'.format(idx + 1), 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=headers_ro, quoting=csv.QUOTE_NONNUMERIC)
             writer.writeheader()
             for db_product in db_product_batch:
                 product_code = db_product[1]
+                # if product_code in skus:
+                #     print(product_code)
+                # skus.append(product_code)
+
                 title_ro = db_product[2]
                 product_meta = decode_dict(deserialize(db_product[8]))
-                pics = [format_pic_name(p) for p in product_pictures[product_code]] \
-                    if product_code in product_pictures else []
+                pics = product_pictures[product_code] if product_code in product_pictures else []
                 main_pic = pics[0] if pics else ''
                 special_price = db_product[5] if (db_product[5] and db_product[5] != '0.0') else ''
                 description = process_description(product_meta.get("description_ro", ""))
@@ -177,9 +183,9 @@ def export_products_magento(conn):
                 price = db_product[4]
                 product_name = title_ro if title_ro and title_ro != '' else meta_description
 
-                url_key = format_url_key(product_name)
+                url_key = sanitize_url_key(product_name)
                 if url_key in url_keys:
-                    url_key = '{}-{}'.format(url_key, format_url_key(product_code))
+                    url_key = '{}-{}'.format(url_key, sanitize_url_key(product_code))
                 url_keys.append(url_key)
 
                 try:
@@ -188,7 +194,7 @@ def export_products_magento(conn):
                     old_category = ''
 
                 product = {
-                    "sku": product_code,
+                    "sku": product_code.strip(),
                     "name": product_name,
                     "old_category": old_category,
                     "created_date": db_product[7],
@@ -224,7 +230,7 @@ def process_description(description):
         for url in re.findall('(?<=src=")(.*?)/Upload/(.*?)(?=")', description):
             # URL will be a tuple. Example: ('Resources/70817815/^all', 'macara-edk-750-db-Roco-73035-a-.jpg')
             old_path = '{}/Upload/{}'.format(url[0], url[1])
-            new_path = 'pub/media/wysiwyg/TA/descriptionImages/{}'.format(format_pic_name(url[1]))
+            new_path = 'pub/media/wysiwyg/TA/descriptionImages/{}'.format(sanitize_pic_name(url[1]))
             result = result.replace(old_path, new_path)
     return result
 
