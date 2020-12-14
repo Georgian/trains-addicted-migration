@@ -1,9 +1,8 @@
 import csv
-import pprint
 import re
 import sqlite3
 
-from common import decode_dict, sanitize_url_key, batch, sanitize_pic_name, sanitize
+from common import decode_dict, sanitize_url_key, batch, sanitize_pic_name
 from serialize_tools import unserialize, loads, dumps
 
 
@@ -145,7 +144,7 @@ def export_products_magento(conn):
 
     db_products_raw = fetch_all(
         conn,
-        "SELECT id, productCode, title_ro, title_en, salePrice, discountPrice, parentId, creationDate, data "
+        "SELECT id, productCode, title_ro, title_en, salePrice, discountPrice, parentId, creationDate, stock, data "
         "FROM objects "
         "WHERE class='CproductPage'")
 
@@ -153,7 +152,7 @@ def export_products_magento(conn):
     db_products = sorted(db_products_raw, reverse=True, key=lambda x: x[7])
 
     headers_en = ["sku", "name", "description", "meta_description", "meta_keywords"]
-    headers_ro = ["sku", "name", "created_date", "old_category", "categories", "description", "price", "special_price",
+    headers_ro = ["sku", "name", "old_category", "categories", "description", "created_at", "price", "special_price",
                   "url_key", "product_type", "attribute_set_code", "product_websites", "qty", "additional_attributes",
                   "short_description", "meta_title", "meta_keywords", "meta_description", "base_image",
                   "additional_images",
@@ -161,20 +160,25 @@ def export_products_magento(conn):
 
     url_keys = []
     skus = []
-    batch_size = int(len(db_products) / 5)
+    # batch_size = int(len(db_products) / 5)
+    batch_size = 1500
+
+    # export_all_skus(db_products)
+    # export_urls_in_descriptions(db_products)
 
     for idx, db_product_batch in enumerate(batch(db_products, batch_size)):
-        with open('build/products_magento_ro_{}.csv'.format(idx + 1), 'w') as csvfile:
+        with open('build/products_ro_{}.csv'.format(idx + 1), 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=headers_ro, quoting=csv.QUOTE_NONNUMERIC)
             writer.writeheader()
             for db_product in db_product_batch:
                 product_code = db_product[1]
-                # if product_code in skus:
-                #     print(product_code)
-                # skus.append(product_code)
+                if product_code in skus:
+                    print(product_code)
+                    continue
+                skus.append(product_code)
 
                 title_ro = db_product[2]
-                product_meta = decode_dict(deserialize(db_product[8]))
+                product_meta = decode_dict(deserialize(db_product[9]))
                 pics = product_pictures[product_code] if product_code in product_pictures else []
                 main_pic = pics[0] if pics else ''
                 special_price = db_product[5] if (db_product[5] and db_product[5] != '0.0') else ''
@@ -197,9 +201,9 @@ def export_products_magento(conn):
                     "sku": product_code.strip(),
                     "name": product_name,
                     "old_category": old_category,
-                    "created_date": db_product[7],
                     "categories": category_mappings[old_category],
                     "description": description,
+                    "created_at": db_product[7],
                     "price": price if price else 0,  # salePrice
                     "special_price": special_price,  # discountPrice
                     "base_image": main_pic,
@@ -210,7 +214,7 @@ def export_products_magento(conn):
                     "product_type": "simple",
                     "attribute_set_code": "Default TA",
                     "product_websites": "base",
-                    "qty": 1,  # TODO
+                    "qty": db_product[8],
                     # "additional_attributes": '',  # TODO
                     # "short_description": "",  # TODO
                     "meta_title": title_ro,
@@ -222,6 +226,31 @@ def export_products_magento(conn):
                     "epoca": product_epoques.get(product_code, '')
                 }
                 writer.writerow(product)
+
+
+def export_urls_in_descriptions(db_products):
+    matcher = re.compile('(?<=href=")(.*?)trains-addicted.ro(.*?)(?=")')
+    with open('build/urls_in_descriptions.csv', 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=['sku', 'name', 'url'])
+        writer.writeheader()
+        for db_product in db_products:
+            product_code = db_product[1]
+            product_meta = decode_dict(deserialize(db_product[9]))
+            meta_description = product_meta.get("metaDescription_ro", "")
+            title_ro = db_product[2]
+            product_name = title_ro if title_ro and title_ro != '' else meta_description
+            description = process_description(product_meta.get("description_ro", ""))
+            for url in re.findall(matcher, description):
+                full_url = '{}trains-addicted.ro{}'.format(url[0], url[1])
+                writer.writerow({'sku': product_code, 'name': product_name, 'url': full_url})
+
+
+def export_all_skus(db_products):
+    with open('build/all_skus.csv', 'w') as skus_csvfile:
+        writer = csv.DictWriter(skus_csvfile, fieldnames=['sku'])
+        writer.writeheader()
+        for db_product in db_products:
+            writer.writerow({'sku': db_product[1].strip()})
 
 
 def process_description(description):
