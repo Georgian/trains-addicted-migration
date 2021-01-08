@@ -17,7 +17,8 @@ def get_objects_by_id(conn, clazz):
     result = {}
     for row in rows:
         meta = deserialize(row[1])
-        result[row[0]] = meta["title_ro".encode()].decode()
+        # CproducerPage has pageTitle instead of title
+        result[row[0]] = meta[("title_ro" if clazz != 'CproducerPage' else "pageTitle_ro").encode()].decode()
     return result
 
 
@@ -86,11 +87,13 @@ def get_pictures_by_product_code(conn):
     return result
 
 
-def get_manufacturers(conn):
-    rows = fetch_all(conn, "SELECT id, title_ro FROM objects where class='CproducerPage'")
+def get_producers(conn):
+    producers_by_id = get_objects_by_id(conn, 'CproducerPage')
+    rows = fetch_all(conn, "select productCode, parentId from objects")
     result = {}
     for row in rows:
-        result[row[0]] = row[1]
+        if row[1] and row[1] in producers_by_id:
+            result[row[0]] = producers_by_id[row[1]]
     return result
 
 
@@ -137,7 +140,7 @@ def export_products_magento(conn):
     product_operators = get_operators_by_product_code(conn)
     product_epoques = get_epoques_by_product_code(conn)
     product_scales = get_scales_by_product_code(conn)
-    product_manufacturers = get_manufacturers(conn)
+    product_producers = get_producers(conn)
     product_pictures = get_pictures_by_product_code(conn)
     category_mappings = get_category_mappings()
     multiple_values_separator = ';'
@@ -221,7 +224,7 @@ def export_products_magento(conn):
                     "meta_description": meta_description,
                     "meta_keywords": product_meta.get("metaKeywords_ro", ""),
                     "operator": product_operators.get(product_code, ''),
-                    "producator": product_manufacturers.get(product_code, ''),
+                    "producator": product_producers.get(product_code, ''),
                     "scara": product_scales.get(product_code, ''),
                     "epoca": product_epoques.get(product_code, '')
                 }
