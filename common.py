@@ -1,5 +1,6 @@
 import os.path
 import re
+import sqlite3
 
 filename_regex = re.compile('[^0-9a-zA-Z]+')
 
@@ -30,3 +31,19 @@ def batch(iterable, n=1):
     length = len(iterable)
     for ndx in range(0, length, n):
         yield iterable[ndx:min(ndx + n, length)]
+
+
+def fetch_all(conn, query):
+    cur = conn.cursor()
+    cur.execute(query)
+    return cur.fetchall()
+
+
+def create_connection(db_file):
+    try:
+        conn = sqlite3.connect(db_file)
+        return conn
+    except sqlite3.Error as conn_err:
+        print(conn_err)
+
+    return None
