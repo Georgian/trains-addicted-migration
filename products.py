@@ -1,6 +1,7 @@
 import csv
 import re
 import sqlite3
+from bs4 import BeautifulSoup
 
 from common import decode_dict, sanitize_url_key, batch, sanitize_pic_name
 from serialize_tools import unserialize, loads, dumps
@@ -120,6 +121,25 @@ def get_images_by_product_code(conn):
     return result
 
 
+def get_weblink_mappings():
+    mappings = {}
+    with open('weblink_mappings.csv', 'r') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        counter = 0
+        for reader_row in reader:
+            sku = reader_row['sku']
+            sku_mapping = mappings[sku] if sku in mappings else []
+            mappings[sku] = sku_mapping
+            sku_mapping.append({
+                'op': reader_row['operation'],
+                'old_url': reader_row['old_url'],
+                'new_url': reader_row['new_url']
+            })
+            counter += 1
+        print('Read ' + str(counter) + ' description mappings')
+    return mappings
+
+
 def get_category_mappings():
     mappings = {}
     with open('category_mappings.csv', 'r') as csvfile:
@@ -154,6 +174,7 @@ def process_and_export_products(conn):
 
     category_mappings = get_category_mappings()
     producer_mappings = get_producer_mappings()
+    weblink_mappings = get_weblink_mappings()
     multiple_values_separator = ';'
 
     db_products_raw = fetch_all(
@@ -172,11 +193,12 @@ def process_and_export_products(conn):
     # export_urls_in_descriptions(db_products)
 
     csv_rows = []
+    processed_description_count = 0
     for db_product in db_products:
         product_code = db_product[1]
         if product_code in skus:
             print('Duplicate sku: ' + product_code)
-            continue # Skip duplicates
+            continue  # Skip duplicates
         skus.append(product_code)
 
         title_ro = db_product[2]
@@ -184,7 +206,9 @@ def process_and_export_products(conn):
         pics = product_pictures[product_code] if product_code in product_pictures else []
         main_pic = pics[0] if pics else ''
         special_price = db_product[5] if (db_product[5] and db_product[5] != '0.0') else ''
-        description = process_description(product_meta.get("description_ro", ""))
+        processed_description = process_description(product_code, product_meta.get("description_ro", ""), weblink_mappings)
+        description = processed_description['result']
+        processed_description_count += processed_description['count']
         meta_description = product_meta.get("metaDescription_ro", "")
         price = db_product[4]
         product_name = title_ro if title_ro and title_ro != '' else meta_description
@@ -229,6 +253,7 @@ def process_and_export_products(conn):
             "epoca": product_epoques.get(product_code, '')
         })
 
+    print('Processed ' + str(processed_description_count) + ' descriptions')
     export_products(csv_rows)
 
 
@@ -267,7 +292,7 @@ def export_urls_in_descriptions(db_products):
             meta_description = product_meta.get("metaDescription_ro", "")
             title_ro = db_product[2]
             product_name = title_ro if title_ro and title_ro != '' else meta_description
-            description = process_description(product_meta.get("description_ro", ""))
+            description = process_description(product_code, product_meta.get("description_ro", ""), None)['result']
             for url in re.findall(matcher, description):
                 full_url = '{}trains-addicted.ro{}'.format(url[0], url[1])
                 writer.writerow({'sku': product_code, 'name': product_name, 'url': full_url})
@@ -281,15 +306,39 @@ def export_all_skus(db_products):
             writer.writerow({'sku': db_product[1].strip()})
 
 
-def process_description(description):
+def process_description(sku, description, weblink_mappings):
     result = description
+    # Replace description image paths
     if description and '/Upload' in description:
         for url in re.findall('(?<=src=")(.*?)/Upload/(.*?)(?=")', description):
             # URL will be a tuple. Example: ('Resources/70817815/^all', 'macara-edk-750-db-Roco-73035-a-.jpg')
             old_path = '{}/Upload/{}'.format(url[0], url[1])
             new_path = 'pub/media/wysiwyg/TA/descriptionImages/{}'.format(sanitize_pic_name(url[1]))
             result = result.replace(old_path, new_path)
-    return result
+    # Replace website urls
+    processed_link_count = 0
+    if weblink_mappings and sku in weblink_mappings:
+        # Sorted reversed by old_url, because 'my-link-2.html' should be replaced before 'my-link.html'
+        for sku_mapping in sorted(weblink_mappings[sku], key=lambda x: x['old_url'], reverse=True):
+            op = sku_mapping['op']
+            old_url = sku_mapping['old_url']
+            new_url = sku_mapping['new_url']
+            # Find every a href tag where the old url is present
+            ahrefs = BeautifulSoup(result, 'html.parser').findAll('a', {'href': old_url})
+            if op != '' and ahrefs:
+                # Here we treat these complex cases where we need to delete link or link&text
+                for ahref in ahrefs:
+                    replacement_url = '' if op == 'DELETE_LINK_AND_TEXT' else ahref.get_text()
+                    result = result.replace(str(ahref), replacement_url)
+                    processed_link_count += 1
+            elif old_url in result:
+                # Simple case, where we just replace the link
+                result = result.replace(old_url, new_url)
+                processed_link_count += 1
+            else:
+                # Weird case, where we might have missed something
+                print('WARN: Did not replace a weblink for sku ' + sku + ' ... please check manually')
+    return {'result': result, 'count': processed_link_count}
 
 
 def create_connection(db_file):
