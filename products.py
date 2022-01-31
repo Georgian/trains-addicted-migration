@@ -193,28 +193,33 @@ def process_and_export_products(conn):
     # export_urls_in_descriptions(db_products)
 
     csv_rows = []
-    processed_description_count = 0
+    csv_rows_en = []
     for db_product in db_products:
         product_code = db_product[1]
         if product_code in skus:
             print('Duplicate sku: ' + product_code)
             continue  # Skip duplicates
         skus.append(product_code)
-
         title_ro = db_product[2]
+        title_en = db_product[3]
         product_meta = decode_dict(deserialize(db_product[9]))
         pics = product_pictures[product_code] if product_code in product_pictures else []
         main_pic = pics[0] if pics else ''
         special_price = db_product[5] if (db_product[5] and db_product[5] != '0.0') else ''
+
         processed_description = process_description(product_code, product_meta.get("description_ro", ""), weblink_mappings)
-        description = processed_description['result']
-        processed_description_count += processed_description['count']
+        description_ro = processed_description['result']
+        processed_description = process_description(product_code, product_meta.get("description_en", ""), weblink_mappings)
+        description_en = processed_description['result']
+
         meta_description = product_meta.get("metaDescription_ro", "")
+        meta_description_en = product_meta.get("metaDescription_en", "")
         price = db_product[4]
         product_name = title_ro if title_ro and title_ro != '' else meta_description
 
         url_key = sanitize_url_key(product_name)
         if url_key in url_keys:
+            # If URL key exists, add product code to make it unique
             url_key = '{}-{}'.format(url_key, sanitize_url_key(product_code))
         url_keys.append(url_key)
 
@@ -229,7 +234,7 @@ def process_and_export_products(conn):
             "name": product_name,
             "old_category": old_category,
             "categories": category_mappings[old_category],
-            "description": description,
+            "description": description_ro,
             "created_at": db_product[7],
             "price": price if price else 0,  # salePrice
             "special_price": special_price,  # discountPrice
@@ -250,35 +255,66 @@ def process_and_export_products(conn):
             "operator": product_operators.get(product_code, ''),
             "producator": producer,
             "scara": product_scales.get(product_code, ''),
-            "epoca": product_epoques.get(product_code, '')
+            "epoca": product_epoques.get(product_code, ''),
         })
 
-    print('Processed ' + str(processed_description_count) + ' descriptions')
+        # ----- english -----
+        product_name = title_en if title_en and title_en != '' else meta_description_en
+
+        url_key = sanitize_url_key(product_name)
+        if url_key in url_keys:
+            # If URL key exists, add product code to make it unique
+            url_key = '{}-{}'.format(url_key, sanitize_url_key(product_code))
+        url_keys.append(url_key)
+
+        csv_rows_en.append({
+            "sku": product_code.strip(),
+            "store_view_code": "com",  # Configured in Magento Admin
+            "name": product_name,
+            "description": description_en,
+            "meta_title": title_en,
+            "meta_description": meta_description_en,
+            "meta_keywords": product_meta.get("metaKeywords_en", "")
+        })
+
+    # print('Processed ' + str(processed_description_count) + ' descriptions')
     export_products(csv_rows)
+    export_products_en(csv_rows_en)
+    # export_products_in_batches(csv_rows)
+
+
+HEADERS_RO = ["sku", "name", "old_category", "categories", "description", "created_at", "price", "special_price",
+              "url_key", "product_type", "attribute_set_code", "product_websites", "qty", "additional_attributes",
+              "short_description", "meta_title", "meta_keywords", "meta_description", "base_image",
+              "additional_images", "thumbnail_image", "small_image", "epoca", "scara", "operator", "producator"]
+
+HEADERS_EN = ["sku", "store_view_code", "name", "description", "meta_title", "meta_description", "meta_keywords"]
 
 
 def export_products(csv_rows):
-    headers_en = ["sku", "name", "description", "meta_description", "meta_keywords"]
-    headers_ro = ["sku", "name", "old_category", "categories", "description", "created_at", "price", "special_price",
-                  "url_key", "product_type", "attribute_set_code", "product_websites", "qty", "additional_attributes",
-                  "short_description", "meta_title", "meta_keywords", "meta_description", "base_image",
-                  "additional_images", "thumbnail_image", "small_image", "epoca", "scara", "operator", "producator"]
-
-    # --- All products ---
     with open('build/all_products.csv', 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=headers_ro, quoting=csv.QUOTE_NONNUMERIC)
+        writer = csv.DictWriter(csvfile, fieldnames=HEADERS_RO, quoting=csv.QUOTE_NONNUMERIC)
         writer.writeheader()
         for csv_row in csv_rows:
             writer.writerow(csv_row)
 
-    # --- Batches ---
-    # batch_size = 1500
-    # for idx, csv_row_batch in enumerate(batch(csv_rows, batch_size)):
-    #     with open('build/products_ro_{}.csv'.format(idx + 1), 'w') as csvfile:
-    #         writer = csv.DictWriter(csvfile, fieldnames=headers_ro, quoting=csv.QUOTE_NONNUMERIC)
-    #         writer.writeheader()
-    #         for csv_row in csv_row_batch:
-    #             writer.writerow(csv_row)
+
+def export_products_en(csv_rows):
+    with open('build/all_products_en.csv', 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=HEADERS_EN, quoting=csv.QUOTE_NONNUMERIC)
+        writer.writeheader()
+        for csv_row in csv_rows:
+            writer.writerow(csv_row)
+
+
+def export_products_in_batches(csv_rows):
+    batch_size = 1500
+    for idx, csv_row_batch in enumerate(batch(csv_rows, batch_size)):
+        with open('build/products_ro_{}.csv'.format(idx + 1), 'w') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=HEADERS_RO, quoting=csv.QUOTE_NONNUMERIC)
+            writer.writeheader()
+            for csv_row in csv_row_batch:
+                writer.writerow(csv_row)
 
 
 def export_urls_in_descriptions(db_products):
