@@ -190,7 +190,7 @@ def process_and_export_products(conn):
     skus = []
 
     # export_all_skus(db_products)
-    # export_urls_in_descriptions(db_products)
+    export_urls_in_descriptions(db_products)
 
     csv_rows = []
     csv_rows_en = []
@@ -278,8 +278,8 @@ def process_and_export_products(conn):
         })
 
     # print('Processed ' + str(processed_description_count) + ' descriptions')
-    export_products(csv_rows)
-    export_products_en(csv_rows_en)
+    # export_products(csv_rows)
+    # export_products_en(csv_rows_en)
     # export_products_in_batches(csv_rows)
 
 
@@ -319,8 +319,8 @@ def export_products_in_batches(csv_rows):
 
 def export_urls_in_descriptions(db_products):
     matcher = re.compile('(?<=href=")(.*?)trains-addicted.ro(.*?)(?=")')
-    with open('build/urls_in_descriptions.csv', 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['sku', 'name', 'url'])
+    with open('build/urls_in_descriptions_ro.csv', 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=['sku', 'name', 'url_ro'])
         writer.writeheader()
         for db_product in db_products:
             product_code = db_product[1]
@@ -328,10 +328,24 @@ def export_urls_in_descriptions(db_products):
             meta_description = product_meta.get("metaDescription_ro", "")
             title_ro = db_product[2]
             product_name = title_ro if title_ro and title_ro != '' else meta_description
-            description = process_description(product_code, product_meta.get("description_ro", ""), None)['result']
-            for url in re.findall(matcher, description):
+            description_ro = process_description(product_code, product_meta.get("description_ro", ""), None)['result']
+            for url in re.findall(matcher, description_ro):
                 full_url = '{}trains-addicted.ro{}'.format(url[0], url[1])
-                writer.writerow({'sku': product_code, 'name': product_name, 'url': full_url})
+                writer.writerow({'sku': product_code, 'name': product_name, 'url_ro': full_url})
+
+    with open('build/urls_in_descriptions_en.csv', 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=['sku', 'name', 'url_en'])
+        writer.writeheader()
+        for db_product in db_products:
+            product_code = db_product[1]
+            product_meta = decode_dict(deserialize(db_product[9]))
+            meta_description = product_meta.get("metaDescription_en", "")
+            title_ro = db_product[2]
+            product_name = title_ro if title_ro and title_ro != '' else meta_description
+            description_en = process_description(product_code, product_meta.get("description_en", ""), None)['result']
+            for url in re.findall(matcher, description_en):
+                full_url = '{}trains-addicted.ro{}'.format(url[0], url[1])
+                writer.writerow({'sku': product_code, 'name': product_name, 'url_en': full_url})
 
 
 def export_all_skus(db_products):

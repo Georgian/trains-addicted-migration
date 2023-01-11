@@ -1,5 +1,6 @@
 import csv
-import pprint
+
+import unidecode
 
 import common
 from serialize_tools import unserialize, loads, dumps
@@ -7,6 +8,10 @@ from serialize_tools import unserialize, loads, dumps
 
 def deserialize(db_object):
     return unserialize(loads(dumps(db_object)))
+
+
+def normalize_string(string):
+    return unidecode.unidecode(string).title()
 
 
 def process_and_export_users(conn):
@@ -87,9 +92,9 @@ def process_and_export_users(conn):
                         'lastname': user_lastname,
                         'telephone': user_telephone,
                         'country_id': 'RO',
-                        'city': user_address['city'],
+                        'city': normalize_string(user_address['city']),
                         'postcode': user_address['zipcode'],
-                        'region': user_address['district'],
+                        'region': normalize_string(user_address['district']),
                         'street': user_address['streetAddress'],
                         '_address_default_billing_': 1 if idx == 0 else 0,
                         '_address_default_shipping_': 1 if idx == 0 else 0,
