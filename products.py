@@ -1,10 +1,9 @@
 import csv
-import re
-import sqlite3
-from bs4 import BeautifulSoup
 
-from common import decode_dict, sanitize_url_key, batch, sanitize_pic_name
+from bs4 import BeautifulSoup
 from phpserialize import *
+
+from common import *
 
 
 def deserialize(db_object):
@@ -204,9 +203,11 @@ def process_and_export_products(conn):
         main_pic = pics[0] if pics else ''
         special_price = db_product[5] if (db_product[5] and db_product[5] != '0.0') else ''
 
-        processed_description = process_description(product_code, product_meta.get("description_ro", ""), weblink_mappings)
+        processed_description = process_description(product_code, product_meta.get("description_ro", ""),
+                                                    weblink_mappings)
         description_ro = processed_description['result']
-        processed_description = process_description(product_code, product_meta.get("description_en", ""), weblink_mappings)
+        processed_description = process_description(product_code, product_meta.get("description_en", ""),
+                                                    weblink_mappings)
         description_en = processed_description['result']
 
         meta_description = product_meta.get("metaDescription_ro", "")
@@ -291,7 +292,7 @@ HEADERS_EN = ["sku", "store_view_code", "name", "description", "meta_title", "me
 
 
 def export_products(csv_rows):
-    with open('build/all_products.csv', 'w') as csvfile:
+    with open_file_w('all_products.csv') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=HEADERS_RO, quoting=csv.QUOTE_NONNUMERIC)
         writer.writeheader()
         for csv_row in csv_rows:
@@ -299,7 +300,7 @@ def export_products(csv_rows):
 
 
 def export_products_en(csv_rows):
-    with open('build/all_products_en.csv', 'w') as csvfile:
+    with open_file_w('all_products_en.csv') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=HEADERS_EN, quoting=csv.QUOTE_NONNUMERIC)
         writer.writeheader()
         for csv_row in csv_rows:
@@ -309,7 +310,7 @@ def export_products_en(csv_rows):
 def export_products_in_batches(csv_rows):
     batch_size = 1500
     for idx, csv_row_batch in enumerate(batch(csv_rows, batch_size)):
-        with open('build/products_ro_{}.csv'.format(idx + 1), 'w') as csvfile:
+        with open_file_w('products_ro_{}.csv'.format(idx + 1)) as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=HEADERS_RO, quoting=csv.QUOTE_NONNUMERIC)
             writer.writeheader()
             for csv_row in csv_row_batch:
@@ -318,7 +319,7 @@ def export_products_in_batches(csv_rows):
 
 def export_urls_in_descriptions(db_products):
     matcher = re.compile('(?<=href=")(.*?)trains-addicted.ro(.*?)(?=")')
-    with open('build/urls_in_descriptions_ro.csv', 'w') as csvfile:
+    with open_file_w('urls_in_descriptions_ro.csv') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=['sku', 'name', 'url_ro'])
         writer.writeheader()
         for db_product in db_products:
@@ -332,7 +333,7 @@ def export_urls_in_descriptions(db_products):
                 full_url = '{}trains-addicted.ro{}'.format(url[0], url[1])
                 writer.writerow({'sku': product_code, 'name': product_name, 'url_ro': full_url})
 
-    with open('build/urls_in_descriptions_en.csv', 'w') as csvfile:
+    with open_file_w('urls_in_descriptions_en.csv') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=['sku', 'name', 'url_en'])
         writer.writeheader()
         for db_product in db_products:
@@ -348,7 +349,7 @@ def export_urls_in_descriptions(db_products):
 
 
 def export_all_skus(db_products):
-    with open('build/all_skus.csv', 'w') as skus_csvfile:
+    with open_file_w('all_skus.csv') as skus_csvfile:
         writer = csv.DictWriter(skus_csvfile, fieldnames=['sku'])
         writer.writeheader()
         for db_product in db_products:
@@ -388,16 +389,6 @@ def process_description(sku, description, weblink_mappings):
                 # Weird case, where we might have missed something
                 print('WARN: Did not replace a weblink for sku ' + sku + ' ... please check manually')
     return {'result': result, 'count': processed_link_count}
-
-
-def create_connection(db_file):
-    try:
-        conn = sqlite3.connect(db_file)
-        return conn
-    except sqlite3.Error as conn_err:
-        print(conn_err)
-
-    return None
 
 
 in_conn = create_connection('db.sqlite')

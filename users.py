@@ -1,9 +1,9 @@
 import csv
 
 import unidecode
-
-import common
 from phpserialize import *
+
+from common import *
 
 
 def deserialize(db_object):
@@ -15,10 +15,10 @@ def normalize_string(string):
 
 
 def process_and_export_users(conn):
-    db_rows = common.fetch_all(conn, "SELECT id, data, email, lastName, firstName, creationDate "
-                                     "FROM objects "
-                                     "WHERE class = 'Cuser'"
-                                     "ORDER BY creationDate DESC")
+    db_rows = fetch_all(conn, "SELECT id, data, email, lastName, firstName, creationDate "
+                              "FROM objects "
+                              "WHERE class = 'Cuser'"
+                              "ORDER BY creationDate DESC")
 
     main_file_headers = ["email", "firstname", "lastname", "password_hash", "created_at",
                          "group_id", "store_id", "website_id", "_website"]
@@ -28,7 +28,7 @@ def process_and_export_users(conn):
                             "_address_default_shipping_"]
 
     entity_id = 10
-    with open('build/customers.csv', 'w') as main_file, open('build/customer_addresses.csv', 'w') as address_file:
+    with open_file_w('customers.csv') as main_file, open_file_w('customer_addresses.csv') as address_file:
         main_file_writer = csv.DictWriter(main_file, fieldnames=main_file_headers, quoting=csv.QUOTE_NONNUMERIC)
         main_file_writer.writeheader()
         address_file_writer = csv.DictWriter(address_file, fieldnames=address_file_headers,
@@ -102,6 +102,6 @@ def process_and_export_users(conn):
                     })
 
 
-in_conn = common.create_connection('db.sqlite')
+in_conn = create_connection('db.sqlite')
 with in_conn:
     process_and_export_users(in_conn)

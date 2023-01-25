@@ -1,6 +1,7 @@
 import os.path
 import re
 import sqlite3
+from pathlib import Path
 
 filename_regex = re.compile('[^0-9a-zA-Z]+')
 
@@ -37,6 +38,11 @@ def fetch_all(conn, query):
     cur = conn.cursor()
     cur.execute(query)
     return cur.fetchall()
+
+
+def open_file_w(name):
+    Path('./build').mkdir(exist_ok=True)
+    return open('build/' + name, 'w')
 
 
 def create_connection(db_file):
