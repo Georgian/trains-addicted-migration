@@ -35,6 +35,6 @@ Example:
 
 Maps old categories to Magento-compliant categories and subcategories.
 
-### common.py and serialize_tools.py
+### common.py
 
 Just general tools.

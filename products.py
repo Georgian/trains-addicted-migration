@@ -4,7 +4,7 @@ import sqlite3
 from bs4 import BeautifulSoup
 
 from common import decode_dict, sanitize_url_key, batch, sanitize_pic_name
-from serialize_tools import unserialize, loads, dumps
+from phpserialize import *
 
 
 def deserialize(db_object):

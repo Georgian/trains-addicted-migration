@@ -3,7 +3,7 @@ import csv
 import unidecode
 
 import common
-from serialize_tools import unserialize, loads, dumps
+from phpserialize import *
 
 
 def deserialize(db_object):
@@ -21,10 +21,10 @@ def process_and_export_users(conn):
                                      "ORDER BY creationDate DESC")
 
     main_file_headers = ["email", "firstname", "lastname", "password_hash", "created_at",
-                         "group_id", "store_id", "website_id"]
+                         "group_id", "store_id", "website_id", "_website"]
 
     address_file_headers = ["_email", "_website", "_entity_id", "firstname", "lastname", "city", "country_id",
-                            "postcode", "region", "street", "telephone", "_address_default_billing_",
+                            "postcode", "street", "telephone", "_address_default_billing_",
                             "_address_default_shipping_"]
 
     entity_id = 10
@@ -77,7 +77,8 @@ def process_and_export_users(conn):
                 'created_at': db_row[5],
                 'group_id': 1,
                 'website_id': 1,
-                'store_id': 1
+                'store_id': 1,
+                "_website": "base"
             })
 
             # -- Write address file -- #
@@ -94,7 +95,7 @@ def process_and_export_users(conn):
                         'country_id': 'RO',
                         'city': normalize_string(user_address['city']),
                         'postcode': user_address['zipcode'],
-                        'region': normalize_string(user_address['district']),
+                        # 'region': normalize_string(user_address['district']),
                         'street': user_address['streetAddress'],
                         '_address_default_billing_': 1 if idx == 0 else 0,
                         '_address_default_shipping_': 1 if idx == 0 else 0,
