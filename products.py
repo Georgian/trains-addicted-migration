@@ -123,7 +123,7 @@ def get_images_by_product_code(conn):
 
 def get_weblink_mappings():
     mappings = {}
-    with open('weblink_mappings.csv', 'r') as csvfile:
+    with open('mappings/weblink_mappings.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')
         counter = 0
         for reader_row in reader:
@@ -142,7 +142,7 @@ def get_weblink_mappings():
 
 def get_category_mappings():
     mappings = {}
-    with open('category_mappings.csv', 'r') as csvfile:
+    with open('mappings/category_mappings.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')
         for reader_row in reader:
             mappings[reader_row['old_category']] = reader_row['new_category']
@@ -151,7 +151,7 @@ def get_category_mappings():
 
 def get_producer_mappings():
     mappings = {}
-    with open('producer_mappings.csv', 'r') as csvfile:
+    with open('mappings/producer_mappings.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')
         for reader_row in reader:
             mappings[reader_row['old_producer']] = reader_row['new_producer']
@@ -189,9 +189,6 @@ def process_and_export_products(conn):
     url_keys = []
     skus = []
 
-    # export_all_skus(db_products)
-    export_urls_in_descriptions(db_products)
-
     csv_rows = []
     csv_rows_en = []
     for db_product in db_products:
@@ -224,6 +221,7 @@ def process_and_export_products(conn):
         url_keys.append(url_key)
 
         old_category = product_categories[product_code] if product_code in product_categories else ''
+        new_category = category_mappings[old_category] if old_category in category_mappings else old_category
 
         producer = product_producers.get(product_code, '')
         if producer in producer_mappings:
@@ -233,7 +231,7 @@ def process_and_export_products(conn):
             "sku": product_code.strip(),
             "name": product_name,
             "old_category": old_category,
-            "categories": category_mappings[old_category],
+            "categories": new_category,
             "description": description_ro,
             "created_at": db_product[7],
             "price": price if price else 0,  # salePrice
@@ -277,10 +275,11 @@ def process_and_export_products(conn):
             "meta_keywords": product_meta.get("metaKeywords_en", "")
         })
 
-    # print('Processed ' + str(processed_description_count) + ' descriptions')
-    # export_products(csv_rows)
-    # export_products_en(csv_rows_en)
-    # export_products_in_batches(csv_rows)
+    export_products(csv_rows)
+    export_products_en(csv_rows_en)
+    export_products_in_batches(csv_rows)
+    export_all_skus(db_products)
+    export_urls_in_descriptions(db_products)
 
 
 HEADERS_RO = ["sku", "name", "old_category", "categories", "description", "created_at", "price", "special_price",
